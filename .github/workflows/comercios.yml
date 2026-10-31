@@ -1,0 +1,39 @@
+# Una vez por mes baja la versión nueva de Overture Maps, rearma los comercios de
+# "Buscar clientes" y los publica. La app avisa en el celular que hay datos nuevos.
+# También se puede correr a mano desde la pestaña "Actions" de GitHub.
+name: Actualizar comercios
+
+on:
+  schedule:
+    - cron: "0 12 27 * *" # día 27 de cada mes (Overture publica alrededor del 20)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install duckdb
+      - run: python datos/actualizar_comercios.py
+      - name: Publicar si hay datos nuevos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git status --porcelain datos)" ]; then
+            echo "Sin cambios"
+            exit 0
+          fi
+          version=$(python -c "import json; print(json.load(open('datos/indice.json'))['version'])")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datos
+          git commit -m "Comercios actualizados (Overture $version)"
+          git push
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || true

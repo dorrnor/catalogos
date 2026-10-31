@@ -1,32 +1,13 @@
 import * as db from './db.js';
 import { analyzePdf } from './analyze.js';
-import { buildPdf, BUILD_VERSION } from './build.js';
-import { openPdf, renderPage, canvasToBlob, scaleForWidth } from './pdfjs.js';
+import { openPdf, renderPage, scaleForWidth } from './pdfjs.js';
+import { I, tabs, setRouter, pushLayer, popLayers, openSheet, snack } from './ui.js';
+import { getOutputBlob, openShareSheet } from './compartir.js';
+import { renderClientes } from './clientes.js';
 import {
   esc, uid, nextFrame, plural, formatPrice, money, parseUserNumber, adjustPrice, ADJUST_MODES,
   timeAgo, daysSince, fmtDate, fmtDateTime, fmtSize, prettyName, normalize, download,
 } from './util.js';
-
-const ico = (path) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
-const I = {
-  back: ico('M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z'),
-  close: ico('M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'),
-  check: ico('M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'),
-  add: ico('M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'),
-  share: ico('M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z'),
-  trash: ico('M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'),
-  search: ico('M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'),
-  eye: ico('M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z'),
-  tag: ico('M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z'),
-  undo: ico('M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z'),
-  file: ico('M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z'),
-  image: ico('M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z'),
-  download: ico('M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'),
-  selectAll: ico('M3 5h2V3c-1.1 0-2 .9-2 2zm0 8h2v-2H3v2zm4 8h2v-2H7v2zM3 9h2V7H3v2zm10-6h-2v2h2V3zm6 0v2h2c0-1.1-.9-2-2-2zM5 21v-2H3c0 1.1.9 2 2 2zm-2-4h2v-2H3v2zM9 3H7v2h2V3zm2 18h2v-2h-2v2zm8-8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2zm0-12h2V7h-2v2zm0 8h2v-2h-2v2zm-4 4h2v-2h-2v2zm0-16h2V3h-2v2zM7 17h10V7H7v10zm2-8h6v6H9V9z'),
-  clock: ico('M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'),
-  warn: ico('M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'),
-  edit: ico('M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'),
-};
 
 const app = document.getElementById('app');
 const state = {
@@ -39,36 +20,6 @@ const state = {
   selecting: false,
   selected: new Set(),
 };
-
-// ---------------------------------------------------------------------------
-// Navegación. El botón "atrás" del celular cierra primero lo que esté abierto
-// (ventanas, modo elegir) y después vuelve a la pantalla anterior.
-
-const layers = [];
-let pendingPops = 0;
-
-function pushLayer(close) {
-  layers.push(close);
-  history.pushState({ layer: layers.length }, '');
-}
-
-function popLayers(n = 1) {
-  n = Math.min(n, layers.length);
-  if (!n) return;
-  pendingPops += n;
-  history.go(-n);
-}
-
-window.addEventListener('popstate', () => {
-  if (layers.length) {
-    let n = Math.max(1, pendingPops);
-    pendingPops = 0;
-    while (n-- > 0 && layers.length) layers.pop()();
-    return;
-  }
-  pendingPops = 0;
-  route();
-});
 
 function go(hash) {
   history.pushState({ fromHome: true }, '', hash);
@@ -84,9 +35,23 @@ function goBack() {
   }
 }
 
+// Las pestañas de arriba navegan como cualquier otra pantalla (el botón "atrás" vuelve).
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('a[data-tab]');
+  if (!tab) return;
+  e.preventDefault();
+  if (tab.getAttribute('href') !== (location.hash || '#/')) go(tab.getAttribute('href'));
+});
+
 async function route() {
   state.selecting = false;
   state.selected.clear();
+  if (location.hash.startsWith('#/clientes')) {
+    state.view = 'clientes';
+    state.pdf = null;
+    await renderClientes(app);
+    return;
+  }
   const m = location.hash.match(/^#\/pdf\/(.+)$/);
   if (m) {
     const pdf = await db.get('pdfs', decodeURIComponent(m[1]));
@@ -147,6 +112,7 @@ async function renderHome() {
         </div>
         ${n ? `<button class="btn-ghost" data-act="select">${I.check}<span>Elegir</span></button>` : ''}
       </div>
+      ${tabs('catalogos')}
     </header>
     <main class="content">
       ${n ? `<p class="hint">Tocá un catálogo para ver y cambiar sus precios. Para elegir varios, <b>mantené apretado</b> o tocá la portada.</p>` : ''}
@@ -465,48 +431,6 @@ function adjustScopeText(products) {
 }
 
 // ---------------------------------------------------------------------------
-// Ventanas (abajo en el celular, al centro en la compu)
-
-function openSheet(html, { onClose, cls = '' } = {}) {
-  const wrap = document.createElement('div');
-  wrap.className = 'sheet-wrap';
-  wrap.innerHTML = `<div class="backdrop"></div><div class="sheet ${cls}" role="dialog" aria-modal="true">${html}</div>`;
-  document.body.appendChild(wrap);
-  void wrap.offsetHeight; // fuerza el estado inicial para que se vea la animación
-  wrap.classList.add('open');
-  const sheet = {
-    el: wrap.querySelector('.sheet'),
-    closed: false,
-    locked: false,
-    close: () => { if (!sheet.closed) popLayers(1); },
-    set: (h) => { sheet.el.innerHTML = h; },
-  };
-  pushLayer(() => {
-    sheet.closed = true;
-    wrap.classList.remove('open');
-    setTimeout(() => wrap.remove(), 220);
-    onClose?.();
-  });
-  wrap.querySelector('.backdrop').addEventListener('click', () => { if (!sheet.locked) sheet.close(); });
-  wrap.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) sheet.close(); });
-  return sheet;
-}
-
-let snackTimer = null;
-function snack(msg, action) {
-  document.querySelector('.snack')?.remove();
-  clearTimeout(snackTimer);
-  const el = document.createElement('div');
-  el.className = 'snack';
-  el.innerHTML = `<span>${esc(msg)}</span>${action ? `<button>${esc(action.label)}</button>` : ''}`;
-  document.body.appendChild(el);
-  void el.offsetHeight;
-  el.classList.add('show');
-  el.querySelector('button')?.addEventListener('click', () => { el.remove(); action.run(); });
-  snackTimer = setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, action ? 9000 : 4000);
-}
-
-// ---------------------------------------------------------------------------
 // Agregar PDFs
 
 async function importFiles(files) {
@@ -770,131 +694,6 @@ function openAdjustSheet(products, scopeText) {
 }
 
 // ---------------------------------------------------------------------------
-// Armar el PDF con los precios nuevos
-
-async function getOutputBlob(pdf) {
-  const fresh = await db.get('pdfs', pdf.id);
-  const file = await db.get('files', pdf.id);
-  if (!fresh.changedCount) return file.blob;
-  const cached = await db.get('outputs', pdf.id);
-  if (cached && cached.rev === fresh.rev && cached.build === BUILD_VERSION) return cached.blob;
-  const products = await db.productsOf(pdf.id);
-  const bytes = await buildPdf(await file.blob.arrayBuffer(), products);
-  const blob = new Blob([bytes], { type: 'application/pdf' });
-  await db.put('outputs', { id: pdf.id, rev: fresh.rev, build: BUILD_VERSION, blob });
-  return blob;
-}
-
-const baseName = (pdf) => pdf.fileName.replace(/\.pdf$/i, '');
-
-// ---------------------------------------------------------------------------
-// Compartir (WhatsApp, Estado, mail, etc.) usando el menú de compartir del celular
-
-function openShareSheet(pdfs) {
-  if (!pdfs.length) return;
-  const one = pdfs.length === 1;
-  const pages = pdfs.reduce((s, p) => s + p.pageCount, 0);
-  const sheet = openSheet(`
-    <h2>Compartir ${one ? 'catálogo' : `${pdfs.length} catálogos`}</h2>
-    <p class="sheet-sub">${esc(pdfs.map((p) => p.name).join(' · '))}</p>
-    <button class="option" data-mode="pdf">
-      <span class="option-icon">${I.file}</span>
-      <span><b>Como PDF</b><small>Para mandarlo a clientes por WhatsApp, mail o donde quieras.</small></span>
-    </button>
-    <button class="option" data-mode="img">
-      <span class="option-icon">${I.image}</span>
-      <span><b>Como imágenes</b><small>Una foto por página (${pages} en total). Sirve para el <b>Estado de WhatsApp</b>, que no acepta PDF.</small></span>
-    </button>
-    ${one && pdfs[0].pageCount > 1 ? `
-    <div class="range" id="range">
-      <span>Páginas para las imágenes:</span>
-      <input type="number" id="from" min="1" max="${pdfs[0].pageCount}" value="1" inputmode="numeric"> a
-      <input type="number" id="to" min="1" max="${pdfs[0].pageCount}" value="${pdfs[0].pageCount}" inputmode="numeric">
-    </div>` : ''}
-    <div class="sheet-actions"><button class="btn-secondary" data-close>Cancelar</button></div>`);
-
-  sheet.el.addEventListener('click', async (e) => {
-    const b = e.target.closest('.option[data-mode]');
-    if (!b) return;
-    let range = null;
-    if (b.dataset.mode === 'img' && one && pdfs[0].pageCount > 1) {
-      const max = pdfs[0].pageCount;
-      const from = Math.min(max, Math.max(1, Number(sheet.el.querySelector('#from').value) || 1));
-      const to = Math.min(max, Math.max(from, Number(sheet.el.querySelector('#to').value) || max));
-      range = [from, to];
-    }
-    await prepareShare(sheet, pdfs, b.dataset.mode, range);
-  });
-}
-
-async function prepareShare(sheet, pdfs, mode, range) {
-  sheet.locked = true;
-  sheet.set(`
-    <h2>Preparando…</h2>
-    <p class="sheet-sub" id="sh-step"></p>
-    <div class="progress"><div id="sh-bar"></div></div>`);
-  const step = (text, frac) => {
-    if (sheet.closed) return;
-    sheet.el.querySelector('#sh-step').textContent = text;
-    sheet.el.querySelector('#sh-bar').style.width = `${Math.round(frac * 100)}%`;
-  };
-  const files = [];
-  try {
-    for (const [i, pdf] of pdfs.entries()) {
-      step(`Armando ${pdf.name} con los precios nuevos…`, i / pdfs.length);
-      await nextFrame();
-      const blob = await getOutputBlob(pdf);
-      if (mode === 'pdf') {
-        files.push(new File([blob], pdf.fileName, { type: 'application/pdf' }));
-        continue;
-      }
-      const doc = await openPdf(await blob.arrayBuffer());
-      const [from, to] = range || [1, doc.numPages];
-      for (let n = from; n <= to; n++) {
-        if (sheet.closed) { doc.destroy(); return; }
-        step(`${pdf.name}: página ${n} de ${to}`, (i + (n - from + 1) / (to - from + 1)) / pdfs.length);
-        const page = await doc.getPage(n);
-        const { canvas } = await renderPage(page, scaleForWidth(page, 1240));
-        const img = await canvasToBlob(canvas, 'image/jpeg', 0.86);
-        files.push(new File([img], `${baseName(pdf)}_pag${String(n).padStart(2, '0')}.jpg`, { type: 'image/jpeg' }));
-        page.cleanup();
-      }
-      doc.destroy();
-    }
-  } catch (err) {
-    console.error(err);
-    sheet.locked = false;
-    sheet.set(`<h2>No se pudo preparar</h2><p class="sheet-sub">${esc(err.message || String(err))}</p>
-      <div class="sheet-actions"><button class="btn-primary" data-close>Cerrar</button></div>`);
-    return;
-  }
-  if (sheet.closed) return;
-  sheet.locked = false;
-
-  const total = files.reduce((s, f) => s + f.size, 0);
-  const canShare = !!navigator.canShare && navigator.canShare({ files });
-  const what = mode === 'pdf' ? (files.length === 1 ? '1 PDF' : `${files.length} PDFs`) : `${files.length} ${files.length === 1 ? 'imagen' : 'imágenes'}`;
-  sheet.set(`
-    <div class="ready">${I.check}<div><b>Listo: ${what}</b><span>${fmtSize(total)}</span></div></div>
-    ${canShare ? `
-      <button class="btn-share" id="go-share">${I.share}Compartir ahora</button>
-      <p class="hint">Se abre el menú de compartir: elegí <b>WhatsApp</b> y después los contactos o grupos que quieras${mode === 'img' ? ', o <b>Mi estado</b>' : ''}.</p>` : `
-      <button class="btn-share" id="go-download">${I.download}Descargar</button>
-      <p class="hint">Este navegador no deja compartir directo. Se descargan y los mandás desde WhatsApp eligiéndolos de Descargas.</p>`}
-    <div class="sheet-actions"><button class="btn-secondary" data-close>Cerrar</button></div>`);
-  sheet.el.querySelector('#go-share')?.addEventListener('click', async () => {
-    try {
-      await navigator.share({ files });
-    } catch (err) {
-      if (err.name !== 'AbortError') snack(`No se pudo compartir: ${err.message}`);
-    }
-  });
-  sheet.el.querySelector('#go-download')?.addEventListener('click', () => {
-    files.forEach((f, i) => setTimeout(() => download(f, f.name), i * 400));
-  });
-}
-
-// ---------------------------------------------------------------------------
 // Renombrar (solo el nombre que se ve en la app; al compartir se usa el nombre del archivo)
 
 function openRenameSheet(pdf) {
@@ -1021,4 +820,5 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:' && location.ho
   navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('Sin modo offline:', err));
 }
 
+setRouter(route);
 route();

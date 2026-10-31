@@ -10,8 +10,11 @@ export function uid() {
 
 export const nextFrame = () => new Promise((r) => setTimeout(r, 30));
 
+// 18759 -> "18.759"
+export const fmtNum = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
 // plural(1, 'producto', 'productos') -> "1 producto"
-export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+export const plural = (n, one, many) => `${fmtNum(n)} ${n === 1 ? one : many}`;
 
 // "$ 1.958" -> { value: 1958, fmt: { space: true, dec: 0 } }
 export function parsePriceText(text) {
@@ -107,6 +110,44 @@ export function median(list) {
   const s = [...list].sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)];
 }
+
+// Teléfono argentino -> { wa: número para WhatsApp, tel: para mostrar, tipo } o null.
+// tipo: "c" celular seguro (tiene 9 o 15), "p" probable celular, "f" probable fijo
+// (los fijos casi siempre empiezan con 4). Igual que en datos/actualizar_comercios.py.
+const AREAS_3 = new Set(['220', '221', '223', '230', '236', '237', '249', '260', '261', '263', '264', '266',
+  '280', '291', '294', '297', '298', '299', '336', '341', '342', '343', '345', '348', '351', '353', '358',
+  '362', '364', '370', '376', '379', '380', '381', '383', '385', '387', '388']);
+
+export function telefonoAR(crudo) {
+  let d = String(crudo || '').replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('54')) d = d.slice(2);
+  else if (d.startsWith('0')) d = d.slice(1);
+  let movil = false;
+  if (d.length === 11 && d.startsWith('9')) { d = d.slice(1); movil = true; }
+  if (d.length === 12) {
+    for (const largo of [2, 3, 4]) {
+      if (d.slice(largo, largo + 2) === '15') { d = d.slice(0, largo) + d.slice(largo + 2); movil = true; break; }
+    }
+  }
+  if (d.length === 8) d = `11${d}`; // número de AMBA escrito sin código de área
+  if (d.length !== 10) return null;
+  const largo = d.startsWith('11') ? 2 : AREAS_3.has(d.slice(0, 3)) ? 3 : 4;
+  const area = d.slice(0, largo);
+  const abonado = d.slice(largo);
+  const tipo = movil ? 'c' : abonado.startsWith('4') ? 'f' : 'p';
+  return { wa: (tipo === 'f' ? '54' : '549') + d, tel: `${area} ${abonado.slice(0, -4)}-${abonado.slice(-4)}`, tipo };
+}
+
+// Distancia aproximada en km (alcanza y sobra para distancias dentro de una ciudad).
+export function distanciaKm(a, b) {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLon = (b.lon - a.lon) * rad * Math.cos(((a.lat + b.lat) / 2) * rad);
+  return 6371 * Math.sqrt(dLat * dLat + dLon * dLon);
+}
+
+export const fmtKm = (km) => (km < 1 ? `${Math.round(km * 1000 / 50) * 50} m` : `${km.toFixed(km < 10 ? 1 : 0).replace('.', ',')} km`);
 
 export function download(blob, fileName) {
   const a = document.createElement('a');

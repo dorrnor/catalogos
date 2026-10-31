@@ -1,7 +1,7 @@
 // Guarda la app en el celular para que abra sin internet. Siempre abre con lo guardado y,
 // si hay internet, de paso baja la versión nueva para la próxima vez que se abra.
 // Si se agrega o saca un archivo, actualizar FILES y subir VERSION.
-const VERSION = 'catalogos-v1';
+const VERSION = 'catalogos-v2';
 const FILES = [
   './',
   'index.html',
@@ -10,9 +10,14 @@ const FILES = [
   'js/app.js',
   'js/analyze.js',
   'js/build.js',
+  'js/clientes.js',
+  'js/compartir.js',
   'js/db.js',
   'js/pdfjs.js',
+  'js/ui.js',
   'js/util.js',
+  'vendor/leaflet/leaflet.css',
+  'vendor/leaflet/leaflet.js',
   'vendor/pdf-lib.esm.min.js',
   'vendor/pdfjs/pdf.min.js',
   'vendor/pdfjs/pdf.worker.min.js',
@@ -51,7 +56,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  // Los datos de comercios los guarda la app en el celular; acá no se duplican.
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.includes('/datos/')) return;
   event.respondWith(caches.open(VERSION).then(async (cache) => {
     const hit = await cache.match(req, { ignoreSearch: true });
     const fresh = fetch(req)

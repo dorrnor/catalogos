@@ -1,0 +1,58 @@
+{
+  "version": "2026-10-21.0",
+  "actualizado": "2026-10-31",
+  "fuente": "Overture Maps Foundation (datos de Meta, Microsoft, Foursquare y otros)",
+  "rubros": [
+    {
+      "id": "jug",
+      "nombre": "Jugueterías"
+    },
+    {
+      "id": "lib",
+      "nombre": "Librerías"
+    },
+    {
+      "id": "baz",
+      "nombre": "Bazar y hogar"
+    },
+    {
+      "id": "cot",
+      "nombre": "Cotillón"
+    },
+    {
+      "id": "reg",
+      "nombre": "Regalerías"
+    },
+    {
+      "id": "art",
+      "nombre": "Artística"
+    },
+    {
+      "id": "lim",
+      "nombre": "Limpieza"
+    },
+    {
+      "id": "kio",
+      "nombre": "Kioscos"
+    },
+    {
+      "id": "aut",
+      "nombre": "Autoservicios"
+    }
+  ],
+  "zonas": [
+    {
+      "id": "amba",
+      "nombre": "AMBA y La Plata",
+      "archivo": "comercios-amba.json",
+      "cantidad": 17607,
+      "bytes": 3577065,
+      "bbox": [
+        -59.2,
+        -35.15,
+        -57.8,
+        -34.25
+      ]
+    }
+  ]
+}

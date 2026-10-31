@@ -3,21 +3,31 @@
 //   files    -> el PDF original tal cual se cargó
 //   products -> cada producto encontrado en el PDF, con su precio original y el actual
 //   outputs  -> último PDF generado con los precios nuevos (para no rearmarlo cada vez)
+//   comercios -> comercios de cada zona para "Buscar clientes" (se bajan una vez por mes)
+//   contactos -> seguimiento de cada comercio: mensaje enviado, respondió, cliente, notas
+//   ajustes   -> mensajes guardados y preferencias de búsqueda
 
 const DB_NAME = 'catalogos';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let dbPromise = null;
 
 function open() {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
+      req.onupgradeneeded = (e) => {
         const db = req.result;
-        db.createObjectStore('pdfs', { keyPath: 'id' });
-        db.createObjectStore('files', { keyPath: 'id' });
-        db.createObjectStore('products', { keyPath: 'id' }).createIndex('pdfId', 'pdfId');
-        db.createObjectStore('outputs', { keyPath: 'id' });
+        if (e.oldVersion < 1) {
+          db.createObjectStore('pdfs', { keyPath: 'id' });
+          db.createObjectStore('files', { keyPath: 'id' });
+          db.createObjectStore('products', { keyPath: 'id' }).createIndex('pdfId', 'pdfId');
+          db.createObjectStore('outputs', { keyPath: 'id' });
+        }
+        if (e.oldVersion < 2) {
+          db.createObjectStore('comercios', { keyPath: 'zona' });
+          db.createObjectStore('contactos', { keyPath: 'id' });
+          db.createObjectStore('ajustes', { keyPath: 'id' });
+        }
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -59,6 +69,13 @@ export async function putMany(store, values) {
   const tx = db.transaction(store, 'readwrite');
   const os = tx.objectStore(store);
   for (const v of values) os.put(v);
+  return done(tx);
+}
+
+export async function del(store, key) {
+  const db = await open();
+  const tx = db.transaction(store, 'readwrite');
+  tx.objectStore(store).delete(key);
   return done(tx);
 }
 
