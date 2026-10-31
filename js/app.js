@@ -3,7 +3,7 @@ import { analyzePdf } from './analyze.js';
 import { buildPdf, BUILD_VERSION } from './build.js';
 import { openPdf, renderPage, canvasToBlob, scaleForWidth } from './pdfjs.js';
 import {
-  esc, uid, nextFrame, formatPrice, money, parseUserNumber, adjustPrice, ADJUST_MODES,
+  esc, uid, nextFrame, plural, formatPrice, money, parseUserNumber, adjustPrice, ADJUST_MODES,
   timeAgo, daysSince, fmtDate, fmtDateTime, fmtSize, prettyName, normalize, download,
 } from './util.js';
 
@@ -177,7 +177,7 @@ function pdfCard(pdf) {
       </div>
       <div class="pdf-info">
         <h3>${esc(pdf.name)}</h3>
-        <div class="meta">${pdf.productCount} productos · ${pdf.pageCount} págs · ${fmtSize(pdf.size)}</div>
+        <div class="meta">${plural(pdf.productCount, 'producto', 'productos')} · ${plural(pdf.pageCount, 'pág', 'págs')} · ${fmtSize(pdf.size)}</div>
         ${statusBadge(st)}
         <div class="status-sub">${esc(st.sub)}</div>
       </div>
@@ -203,7 +203,7 @@ function renderPdf() {
         <button class="icon-btn" data-act="back" aria-label="Volver">${I.back}</button>
         <div class="brand">
           <div class="brand-title ellipsis">${esc(pdf.name)}</div>
-          <div class="brand-sub">${pdf.productCount} productos · ${pdf.pageCount} págs</div>
+          <div class="brand-sub">${plural(pdf.productCount, 'producto', 'productos')} · ${plural(pdf.pageCount, 'pág', 'págs')}</div>
         </div>
         <button class="icon-btn" data-act="rename" aria-label="Renombrar" title="Renombrar">${I.edit}</button>
         <button class="icon-btn" data-act="view" aria-label="Ver PDF" title="Ver PDF">${I.eye}</button>
@@ -441,7 +441,7 @@ async function handleAction(act) {
         const pdfs = state.pdfs.filter((p) => state.selected.has(p.id));
         const products = (await Promise.all(pdfs.map((p) => db.productsOf(p.id)))).flat();
         if (!products.length) { snack('Los catálogos elegidos no tienen precios para editar.'); return; }
-        openAdjustSheet(products, `${products.length} productos de ${pdfs.length} ${pdfs.length === 1 ? 'catálogo' : 'catálogos'}`);
+        openAdjustSheet(products, `${plural(products.length, 'producto', 'productos')} de ${plural(pdfs.length, 'catálogo', 'catálogos')}`);
       } else {
         const products = state.products.filter((p) => state.selected.has(p.id));
         openAdjustSheet(products, adjustScopeText(products));
@@ -562,7 +562,7 @@ async function importFiles(files) {
       ${results.map((r) => r.error
         ? `<li class="err">${I.warn}<div><b>${esc(r.name)}</b><span>No se pudo leer: ${esc(r.error)}</span></div></li>`
         : r.count
-          ? `<li class="ok">${I.check}<div><b>${esc(r.name)}</b><span>${r.count} precios encontrados</span></div></li>`
+          ? `<li class="ok">${I.check}<div><b>${esc(r.name)}</b><span>${plural(r.count, 'precio encontrado', 'precios encontrados')}</span></div></li>`
           : `<li class="warn">${I.warn}<div><b>${esc(r.name)}</b><span>No encontré precios escritos (puede ser una imagen). Se puede compartir igual.</span></div></li>`).join('')}
     </ul>
     <div class="sheet-actions"><button class="btn-primary" data-close>Aceptar</button></div>`);
@@ -984,7 +984,7 @@ async function openViewer(pdf) {
     doc = await openPdf(await blob.arrayBuffer());
     if (closed) return;
     const fresh = await db.get('pdfs', pdf.id);
-    el.querySelector('#v-sub').textContent = `${doc.numPages} páginas · ${pdfStatus(fresh).title}`;
+    el.querySelector('#v-sub').textContent = `${plural(doc.numPages, 'página', 'páginas')} · ${pdfStatus(fresh).title}`;
     const box = el.querySelector('#v-pages');
     const first = await doc.getPage(1);
     const vp = first.getViewport({ scale: 1 });

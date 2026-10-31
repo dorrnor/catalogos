@@ -10,6 +10,9 @@ export function uid() {
 
 export const nextFrame = () => new Promise((r) => setTimeout(r, 30));
 
+// plural(1, 'producto', 'productos') -> "1 producto"
+export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
 // "$ 1.958" -> { value: 1958, fmt: { space: true, dec: 0 } }
 export function parsePriceText(text) {
   const space = /\$\s/.test(text);
